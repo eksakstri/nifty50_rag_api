@@ -1,4 +1,5 @@
 import json
+import urllib.request
 from pathlib import Path
 
 import faiss
@@ -14,6 +15,34 @@ print("=" * 60)
 EMBEDDING_DIR = Path("embeddings")
 
 SIMILARITY_THRESHOLD = 0.45
+
+CHUNK_TEXT_URL = (
+    "https://github.com/eksakstri/nifty50_rag_api/releases/download/v1.0.0/chunk_text.json"
+)
+
+# ---------------------------------------------------------
+# Download chunk_text.json if required
+# ---------------------------------------------------------
+
+def download_chunk_text():
+
+    EMBEDDING_DIR.mkdir(exist_ok=True)
+
+    destination = EMBEDDING_DIR / "chunk_text.json"
+
+    print("=" * 60)
+    print("Downloading chunk_text.json...")
+    print(CHUNK_TEXT_URL)
+
+    urllib.request.urlretrieve(
+        CHUNK_TEXT_URL,
+        destination
+    )
+
+    print("Download complete.")
+    print(f"Downloaded size : {destination.stat().st_size / (1024*1024):.2f} MB")
+    print("=" * 60)
+
 
 # ---------------------------------------------------------
 # Load FAISS
@@ -35,21 +64,29 @@ print("Loading chunk metadata...")
 
 file_path = EMBEDDING_DIR / "chunk_text.json"
 
-print("=" * 50)
-print("File exists:", file_path.exists())
-print("File path:", file_path)
+if not file_path.exists():
 
-if file_path.exists():
-    print("File size:", file_path.stat().st_size)
+    print("chunk_text.json not found.")
+    download_chunk_text()
+
+else:
+
+    print(f"Found {file_path}")
+    print(f"File size : {file_path.stat().st_size} bytes")
 
     with open(file_path, "r", encoding="utf-8") as f:
-        first_300 = f.read(300)
 
-    print("First 300 characters:")
-    print(first_300)
-print("=" * 50)
+        first_line = f.readline()
+
+    if first_line.startswith("version https://git-lfs.github.com"):
+
+        print("Git LFS pointer detected.")
+        download_chunk_text()
+
+print("Loading JSON...")
 
 with open(file_path, "r", encoding="utf-8") as f:
+
     metadata = json.load(f)["chunks"]
 
 print(f"Metadata entries : {len(metadata)}")
@@ -78,7 +115,10 @@ class QueryRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"status": "running"}
+
+    return {
+        "status": "running"
+    }
 
 
 @app.post("/retrieve")
@@ -137,10 +177,6 @@ def retrieve(req: QueryRequest):
         })
 
         confidences.append(float(score))
-
-    # -------------------------------------------------
-    # No valid context found
-    # -------------------------------------------------
 
     if len(contexts) == 0:
 
