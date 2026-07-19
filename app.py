@@ -33,12 +33,23 @@ print(f"FAISS vectors : {index.ntotal}")
 
 print("Loading chunk metadata...")
 
-with open(
-    EMBEDDING_DIR / "chunk_text.json",
-    "r",
-    encoding="utf-8"
-) as f:
+file_path = EMBEDDING_DIR / "chunk_text.json"
 
+print("=" * 50)
+print("File exists:", file_path.exists())
+print("File path:", file_path)
+
+if file_path.exists():
+    print("File size:", file_path.stat().st_size)
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        first_300 = f.read(300)
+
+    print("First 300 characters:")
+    print(first_300)
+print("=" * 50)
+
+with open(file_path, "r", encoding="utf-8") as f:
     metadata = json.load(f)["chunks"]
 
 print(f"Metadata entries : {len(metadata)}")
